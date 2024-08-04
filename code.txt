@@ -122,6 +122,20 @@ for indicator in indicators:
 combined_df = pd.concat([pivot_stock_df, pivot_indicator_df], axis=1)
 combined_df.dropna(inplace=True)
 
+# Extract the month from the index
+combined_df['Month'] = combined_df.index.month
+
+# Create binary flags for Q1, Q2, and Q3
+combined_df['Q1'] = combined_df['Month'].apply(lambda x: 1 if x in [1, 2, 3] else 0)
+combined_df['Q2'] = combined_df['Month'].apply(lambda x: 1 if x in [4, 5, 6] else 0)
+combined_df['Q3'] = combined_df['Month'].apply(lambda x: 1 if x in [7, 8, 9] else 0)
+
+# Drop the temporary 'Month' column
+combined_df.drop(columns=['Month'], inplace=True)
+
+# Now combined_df has the quarterly indicators as additional columns
+print(combined_df.head())
+
 # Run the study
 study = optuna.create_study(direction="minimize")
 study.optimize(functools.partial(objective, 

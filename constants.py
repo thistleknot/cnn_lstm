@@ -34,7 +34,11 @@ features = [
     'fred.T10Y3M.value-2',
     'fred.T10Y3M.value-91',
     'fred.EFFR.value-2',
-    'fred.EFFR.value-91'
+    'fred.EFFR.value-91',
+    'date.quarter.Q1',
+    'date.quarter.Q2',
+    'date.quarter.Q3',
+    'date.quarter.Q4'
 ]
 
 # Define indicators
