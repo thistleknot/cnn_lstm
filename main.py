@@ -1,6 +1,7 @@
 from imports import *
 from constants import *
 from CNN_LSTM.evaluation import objective, backtest_and_evaluate
+from functions import *
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
@@ -17,7 +18,11 @@ for indicator in indicators:
     
     # Assign the interpolated data to the dictionary
     indicator_data[indicator] = ind_data
+
+
     #TODO: use last business day as defined from nyse_dates
+    #TODO: set optimal lag based on median correlation between forecast_feature... 
+    ##requires handling how to populate features in constants.py
     indicator_data[indicator + '-2'] = ind_data.shift(2).resample('W').last()
     indicator_data[indicator + '-91'] = ind_data.shift(91).resample('W').last()
 

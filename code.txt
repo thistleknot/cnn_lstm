@@ -6,13 +6,6 @@
  
 from imports import *
 
-# constants.py
-NUM_SIMULATIONS = 3
-N_TRIALS = 5
-NUM_EPOCHS = 20
-LOOK_BACK = 156
-FORECAST_RANGE = 13
-
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
@@ -20,9 +13,11 @@ print(f"Using device: {device}")
 end_date = datetime.now()
 start_date = end_date - timedelta(days=365*5)  # 5 years of data
 
-NUM_SIMULATIONS = 10  # or any other number you prefer
-N_TRIALS = 20
-NUM_EPOCHS = 50
+debug = False
+
+NUM_SIMULATIONS = 3  # or any other number you prefer
+N_TRIALS = 10
+NUM_EPOCHS = 20
 LOOK_BACK = 156
 FORECAST_RANGE = 13
 
@@ -56,6 +51,44 @@ include_flags = [f'include.{feature}' for feature in features[1:]]  # Skip the f
 trial_results = []
  
  
+"C:\Users\User\Documents\wiki\wiki\dev\python\Python-Stock\code\CNN-TS\functions.py": 
+ 
+ 
+import pandas as pd
+
+def calculate_optimal_lag(df, forecast_feature, feature, window_size=91, threshold=0.5):
+    """
+    Calculate the optimal lag for a feature based on median rolling window correlation with the forecast feature.
+    Also returns all significant correlations exceeding the given threshold.
+
+    Parameters:
+    - df (pd.DataFrame): The data frame containing the features.
+    - forecast_feature (str): The name of the forecast feature.
+    - feature (str): The feature for which to calculate the lag.
+    - window_size (int): The size of the rolling window (default: 91 days).
+    - threshold (float): The correlation threshold for considering a correlation significant (default: 0.5).
+
+    Returns:
+    - optimal_lag (int): The lag with the highest median correlation.
+    - significant_correlations (list): List of tuples containing (lag, median correlation) for significant correlations.
+    """
+    correlations = {}
+    significant_correlations = []
+
+    for lag in range(1, window_size + 1):
+        shifted_feature = df[feature].shift(lag)
+        rolling_corr = df[forecast_feature].rolling(window=window_size).corr(shifted_feature)
+        median_corr = rolling_corr.median()
+        correlations[lag] = median_corr
+
+        if abs(median_corr) >= threshold:
+            significant_correlations.append((lag, median_corr))
+
+    optimal_lag = max(correlations, key=correlations.get)
+    return optimal_lag, significant_correlations
+
+ 
+ 
 "C:\Users\User\Documents\wiki\wiki\dev\python\Python-Stock\code\CNN-TS\imports.py": 
  
  
@@ -76,7 +109,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from scipy import stats
-
  
  
 "C:\Users\User\Documents\wiki\wiki\dev\python\Python-Stock\code\CNN-TS\main.py": 
@@ -85,6 +117,7 @@ from scipy import stats
 from imports import *
 from constants import *
 from CNN_LSTM.evaluation import objective, backtest_and_evaluate
+from functions import *
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
@@ -94,9 +127,20 @@ data = {ticker: yf.download(ticker, start=start_date, end=end_date) for ticker i
 # Fetch data for each indicator
 indicator_data = {}
 for indicator in indicators:
-    indicator_data[indicator] = pdr.get_data_fred(indicator, start=start_date, end=end_date)
-    indicator_data[indicator + '-2'] = indicator_data[indicator].shift(2).resample('W').last()
-    indicator_data[indicator + '-91'] = indicator_data[indicator].shift(91).resample('W').last()
+    ind_data = pdr.get_data_fred(indicator, start=start_date, end=end_date)
+    # Interpolate missing data
+    #TODO: Data leakage, use EMA of ffill
+    ind_data = ind_data.interpolate()
+    
+    # Assign the interpolated data to the dictionary
+    indicator_data[indicator] = ind_data
+
+
+    #TODO: use last business day as defined from nyse_dates
+    #TODO: set optimal lag based on median correlation between forecast_feature... 
+    ##requires handling how to populate features in constants.py
+    indicator_data[indicator + '-2'] = ind_data.shift(2).resample('W').last()
+    indicator_data[indicator + '-91'] = ind_data.shift(91).resample('W').last()
 
 # Create a new DataFrame to hold the required features
 stock_data = []
@@ -259,9 +303,6 @@ class LSTMEncoderDecoderAttention(nn.Module):
 "C:\Users\User\Documents\wiki\wiki\dev\python\Python-Stock\code\CNN-TS\CNN_LSTM\evaluation.py": 
  
  
-import numpy as np
-import torch
-from sklearn.preprocessing import MinMaxScaler
 from .training import train_model
 from .CNN_TS import LSTMEncoderDecoderAttention
 from imports import *
@@ -326,10 +367,11 @@ def objective(trial, combined_df, forecast_features, trial_results, LOOK_BACK, F
     # Ensure that the selected features exist in the combined_df
     valid_features = [feature for feature in selected_features if feature in combined_df.columns]
     
-    # Debug print statement to verify selected and valid features
-    print(f"Selected features: {selected_features}")
-    print(f"Valid features: {valid_features}")
-    print(f"Combined_df columns: {combined_df.columns.tolist()}")
+    if(debug):
+        # Debug print statement to verify selected and valid features
+        print(f"Selected features: {selected_features}")
+        print(f"Valid features: {valid_features}")
+        print(f"Combined_df columns: {combined_df.columns.tolist()}")
 
     if not valid_features:
         raise ValueError("No valid features selected for training.")
@@ -414,15 +456,17 @@ def backtest_and_evaluate(study, combined_df, scaler, features, forecast_feature
     # Select valid features from combined_df
     selected_columns = [col for col in combined_df.columns if col in features]
     
+    if(debug):
     # Debug print statements to check selected columns and data_subset
-    print(f"Features: {features}")
-    print(f"Selected columns: {selected_columns}")
+        print(f"Features: {features}")
+        print(f"Selected columns: {selected_columns}")
     
     data_subset = combined_df[selected_columns].dropna()
     
     # Debug print statement to check data_subset
-    print(f"Data subset shape: {data_subset.shape}")
-    print(f"Data subset head:\n{data_subset.head()}")
+    if(debug):
+        print(f"Data subset shape: {data_subset.shape}")
+        print(f"Data subset head:\n{data_subset.head()}")
     
     if data_subset.empty:
         raise ValueError("No data available after dropping NaNs.")

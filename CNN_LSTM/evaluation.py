@@ -1,6 +1,3 @@
-import numpy as np
-import torch
-from sklearn.preprocessing import MinMaxScaler
 from .training import train_model
 from .CNN_TS import LSTMEncoderDecoderAttention
 from imports import *

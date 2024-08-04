@@ -9,9 +9,9 @@ start_date = end_date - timedelta(days=365*5)  # 5 years of data
 
 debug = False
 
-NUM_SIMULATIONS = 10  # or any other number you prefer
-N_TRIALS = 20
-NUM_EPOCHS = 50
+NUM_SIMULATIONS = 3  # or any other number you prefer
+N_TRIALS = 10
+NUM_EPOCHS = 20
 LOOK_BACK = 156
 FORECAST_RANGE = 13
 
