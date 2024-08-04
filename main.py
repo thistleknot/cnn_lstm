@@ -10,25 +10,28 @@ data = {ticker: yf.download(ticker, start=start_date, end=end_date) for ticker i
 
 # Create a date range from start_date to end_date
 all_dates = pd.date_range(start=start_date, end=end_date, freq='D').normalize()
+nyse = mcal.get_calendar('NYSE')
+nyse_dates = nyse.schedule(start_date=start_date, end_date=end_date)['market_close'].dt.normalize().dt.strftime('%Y-%m-%d').index
 
 # Fetch data for each indicator
 indicator_data = {}
 for indicator in indicators:
     ind_data = pdr.get_data_fred(indicator, start=start_date, end=end_date)
-    ind_data = ind_data.reindex(all_dates).interpolate()  # Interpolate missing data
+    ind_data = ind_data.reindex(all_dates).interpolate().ffill()  # Interpolate missing data
     indicator_data[indicator] = ind_data
-    indicator_data[indicator + '-2'] = ind_data.shift(2).resample('W').last()
-    indicator_data[indicator + '-91'] = ind_data.shift(91).resample('W').last()
+    indicator_data[indicator + '-2'] = ind_data.shift(2).reindex(nyse_dates).resample('W').last()
+    indicator_data[indicator + '-91'] = ind_data.shift(91).reindex(nyse_dates).resample('W').last()
 
 # Create a new DataFrame to hold the required features
 stock_data = []
 for key in data.keys():
-    df = data[key].reindex(all_dates).interpolate()
+    df = data[key].reindex(all_dates).interpolate().ffill()
     df['vwp'] = df['Adj Close'] * df['Volume']
     df['p-1'] = df['Adj Close'].shift(1)
     df = df[['Adj Close', 'vwp', 'p-1', 'Volume']]
+    
+    df = df.reindex(nyse_dates).resample('W').last()
     df['Date'] = df.index  # Ensure Date is maintained
-    df = df.resample('W').last()
     df['date_feature'] = (df.index - df.index[0]).days
     df['ticker'] = key
     stock_data.append(df)
