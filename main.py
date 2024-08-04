@@ -8,37 +8,36 @@ print(f"Using device: {device}")
 
 data = {ticker: yf.download(ticker, start=start_date, end=end_date) for ticker in tickers}
 
+# Create a date range from start_date to end_date
+all_dates = pd.date_range(start=start_date, end=end_date, freq='D').normalize()
+
 # Fetch data for each indicator
 indicator_data = {}
 for indicator in indicators:
     ind_data = pdr.get_data_fred(indicator, start=start_date, end=end_date)
-    # Interpolate missing data
-    #TODO: Data leakage, use EMA of ffill
-    ind_data = ind_data.interpolate()
-    
-    # Assign the interpolated data to the dictionary
+    ind_data = ind_data.reindex(all_dates).interpolate()  # Interpolate missing data
     indicator_data[indicator] = ind_data
-
-
-    #TODO: use last business day as defined from nyse_dates
-    #TODO: set optimal lag based on median correlation between forecast_feature... 
-    ##requires handling how to populate features in constants.py
     indicator_data[indicator + '-2'] = ind_data.shift(2).resample('W').last()
     indicator_data[indicator + '-91'] = ind_data.shift(91).resample('W').last()
 
 # Create a new DataFrame to hold the required features
 stock_data = []
 for key in data.keys():
-    df = data[key]
+    df = data[key].reindex(all_dates).interpolate()
     df['vwp'] = df['Adj Close'] * df['Volume']
     df['p-1'] = df['Adj Close'].shift(1)
-    df = df[['Adj Close', 'vwp', 'p-1', 'Volume']].resample('W').last()
+    df = df[['Adj Close', 'vwp', 'p-1', 'Volume']]
+    df['Date'] = df.index  # Ensure Date is maintained
+    df = df.resample('W').last()
     df['date_feature'] = (df.index - df.index[0]).days
     df['ticker'] = key
     stock_data.append(df)
 
 # Combine stock data into a single DataFrame
 combined_stock_data = pd.concat(stock_data)
+
+# Ensure 'Date' is part of the DataFrame
+combined_stock_data.reset_index(drop=True, inplace=True)
 
 # Pivot the data to have a multi-level column index
 pivot_stock_df = combined_stock_data.pivot_table(index='Date', columns='ticker', values=['Adj Close', 'vwp', 'p-1', 'Volume', 'date_feature'])
@@ -53,6 +52,7 @@ for indicator in indicators:
 # Combine stock and indicator data
 combined_df = pd.concat([pivot_stock_df, pivot_indicator_df], axis=1)
 combined_df.dropna(inplace=True)
+
 # Create binary flags for Q1, Q2, Q3, and Q4 directly using index month
 combined_df[('date_', 'quarter', 'Q1')] = combined_df.index.to_series().apply(lambda x: 1 if x.month in [1, 2, 3] else 0)
 combined_df[('date_', 'quarter', 'Q2')] = combined_df.index.to_series().apply(lambda x: 1 if x.month in [4, 5, 6] else 0)
