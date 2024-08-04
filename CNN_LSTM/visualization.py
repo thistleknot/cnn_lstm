@@ -21,38 +21,40 @@ from constants import *
 import matplotlib.dates as mdates
 
 def plot_predictions_with_intervals(y_pred, lower_bound_res, upper_bound_res, dates, feature_names, std_dev=0.67):
+    # Ensure we're only using the last 13 points for the forecast horizon
+    forecast_length = 13
+    y_pred = y_pred[-forecast_length:]
+    lower_bound_res = lower_bound_res[-forecast_length:]
+    upper_bound_res = upper_bound_res[-forecast_length:]
+    dates = dates[-forecast_length:]
+
+    assert len(dates) == forecast_length, f"Expected {forecast_length} dates, got {len(dates)}"
+
     n_features = y_pred.shape[1]
     fig, axes = plt.subplots(n_features, 1, figsize=(12, 6*n_features), sharex=True)
     
     if n_features == 1:
         axes = [axes]
     
-    # Calculate the percentage for ±0.67 standard deviations
     z_score_percent = (stats.norm.cdf(std_dev) - stats.norm.cdf(-std_dev)) * 100
     
     for i, (ax, feature) in enumerate(zip(axes, feature_names)):
         y_pred_trimmed = y_pred[:, i]
         
-        # Plot predictions
-        ax.plot(dates, y_pred_trimmed, label='Predicted', color='red')
+        ax.plot(dates, y_pred_trimmed, label='Forecast', color='blue')
+        ax.fill_between(dates, lower_bound_res[:, i], upper_bound_res[:, i], color='lightblue', alpha=0.4, label='Prediction Interval')
         
-        # Plot residual-based prediction intervals
-        ax.fill_between(dates, lower_bound_res[:, i], upper_bound_res[:, i], color='green', alpha=0.2, label='Residual-Based Prediction Interval')
-        
-        # Add title including the z-score percentage
-        ax.set_title(f'{feature} Prediction with Intervals\n(Based on residuals, ±0.67 std dev ≈ {z_score_percent:.2f}%)')
+        ax.set_title(f'{feature} Forecast with Intervals\n(Based on residuals, ±{std_dev:.2f} std dev ≈ {z_score_percent:.2f}%)')
         
         ax.set_xlabel('Date')
         ax.set_ylabel('Value')
         
         ax.legend(loc='upper left')
         
-        # Format x-axis to show all dates
+        # Ensure x-axis shows exactly 13 dates
         ax.set_xticks(dates)
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
-        ax.xaxis.set_major_locator(mdates.DayLocator(interval=1))
 
     plt.gcf().autofmt_xdate()  # Rotate date labels
     plt.tight_layout()
-    plt.savefig('predictions_intervals.png')
-
+    plt.savefig('forecast_intervals.png')
