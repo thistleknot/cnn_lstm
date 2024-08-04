@@ -20,9 +20,9 @@ from constants import *
 
 import matplotlib.dates as mdates
 
-def plot_predictions_with_intervals(y_pred, lower_bound_res, upper_bound_res, dates, feature_names, std_dev=0.67):
+def plot_predictions_with_intervals(y_pred, lower_bound_res, upper_bound_res, dates, feature_names, std_dev=1):
     # Ensure we're only using the last 13 points for the forecast horizon
-    forecast_length = 13
+    forecast_length = FORECAST_RANGE
     y_pred = y_pred[-forecast_length:]
     lower_bound_res = lower_bound_res[-forecast_length:]
     upper_bound_res = upper_bound_res[-forecast_length:]
