@@ -212,7 +212,7 @@ def backtest_and_evaluate(study, combined_df, scaler, features, forecast_feature
     
     yhat_forecast_inverse_last = yhat_forecast_inverse
     
-    std_dev_constant = 0.33
+    std_dev_constant = 0.67
     lower_bounds_original = yhat_forecast_inverse_last - std_dev_constant * yhat_forecast_inverse_last
     upper_bounds_original = yhat_forecast_inverse_last + std_dev_constant * yhat_forecast_inverse_last
     
