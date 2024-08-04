@@ -7,6 +7,8 @@ print(f"Using device: {device}")
 end_date = datetime.now()
 start_date = end_date - timedelta(days=365*5)  # 5 years of data
 
+debug = False
+
 NUM_SIMULATIONS = 10  # or any other number you prefer
 N_TRIALS = 20
 NUM_EPOCHS = 50

@@ -65,10 +65,11 @@ def objective(trial, combined_df, forecast_features, trial_results, LOOK_BACK, F
     # Ensure that the selected features exist in the combined_df
     valid_features = [feature for feature in selected_features if feature in combined_df.columns]
     
-    # Debug print statement to verify selected and valid features
-    print(f"Selected features: {selected_features}")
-    print(f"Valid features: {valid_features}")
-    print(f"Combined_df columns: {combined_df.columns.tolist()}")
+    if(debug):
+        # Debug print statement to verify selected and valid features
+        print(f"Selected features: {selected_features}")
+        print(f"Valid features: {valid_features}")
+        print(f"Combined_df columns: {combined_df.columns.tolist()}")
 
     if not valid_features:
         raise ValueError("No valid features selected for training.")
@@ -153,15 +154,17 @@ def backtest_and_evaluate(study, combined_df, scaler, features, forecast_feature
     # Select valid features from combined_df
     selected_columns = [col for col in combined_df.columns if col in features]
     
+    if(debug):
     # Debug print statements to check selected columns and data_subset
-    print(f"Features: {features}")
-    print(f"Selected columns: {selected_columns}")
+        print(f"Features: {features}")
+        print(f"Selected columns: {selected_columns}")
     
     data_subset = combined_df[selected_columns].dropna()
     
     # Debug print statement to check data_subset
-    print(f"Data subset shape: {data_subset.shape}")
-    print(f"Data subset head:\n{data_subset.head()}")
+    if(debug):
+        print(f"Data subset shape: {data_subset.shape}")
+        print(f"Data subset head:\n{data_subset.head()}")
     
     if data_subset.empty:
         raise ValueError("No data available after dropping NaNs.")

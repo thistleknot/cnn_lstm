@@ -10,9 +10,16 @@ data = {ticker: yf.download(ticker, start=start_date, end=end_date) for ticker i
 # Fetch data for each indicator
 indicator_data = {}
 for indicator in indicators:
-    indicator_data[indicator] = pdr.get_data_fred(indicator, start=start_date, end=end_date)
-    indicator_data[indicator + '-2'] = indicator_data[indicator].shift(2).resample('W').last()
-    indicator_data[indicator + '-91'] = indicator_data[indicator].shift(91).resample('W').last()
+    ind_data = pdr.get_data_fred(indicator, start=start_date, end=end_date)
+    # Interpolate missing data
+    #TODO: Data leakage, use EMA of ffill
+    ind_data = ind_data.interpolate()
+    
+    # Assign the interpolated data to the dictionary
+    indicator_data[indicator] = ind_data
+    #TODO: use last business day as defined from nyse_dates
+    indicator_data[indicator + '-2'] = ind_data.shift(2).resample('W').last()
+    indicator_data[indicator + '-91'] = ind_data.shift(91).resample('W').last()
 
 # Create a new DataFrame to hold the required features
 stock_data = []
