@@ -26,9 +26,21 @@ tickers = ['GOOGL', 'SPY']
 # Define your parameters
 forecast_features = ['stock.GOOGL.Adj Close']
 
+features = [
+    'stock.GOOGL.Adj Close', 
+    'stock.GOOGL.Volume', 
+    'stock.GOOGL.vwp', 
+    'stock.GOOGL.p-1',
+    'fred.T10Y3M.value-2',
+    'fred.T10Y3M.value-91',
+    'fred.EFFR.value-2',
+    'fred.EFFR.value-91'
+]
+
+# Define indicators
 indicators = ['T10Y3M', 'EFFR']
 
-# Perform t-tests for each feature
-features = ['include_volume', 'include_vwp', 'include_spy', 'include_T10Y3M', 'include_EFFR', 'include_p1']
+# Generate include flags from the features list
+include_flags = [f'include.{feature}' for feature in features[1:]]  # Skip the first feature as it is always included
 
 trial_results = []
