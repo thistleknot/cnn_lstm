@@ -8,24 +8,19 @@ print(f"Using device: {device}")
 data = {ticker: yf.download(ticker, start=start_date, end=end_date) for ticker in tickers}
 
 # Fetch data for each indicator
-# Fetch data for each indicator
 indicator_data = {}
-# Resample indicator data to weekly frequency and apply both lags
 for indicator in indicators:
     indicator_data[indicator] = pdr.get_data_fred(indicator, start=start_date, end=end_date)
-    indicator_data[indicator + '-2'] = indicator_data[indicator].shift(2)  # Lagging the indicator by 2 periods
-    indicator_data[indicator + '-91'] = indicator_data[indicator].shift(91)  # Lagging the indicator by 91 periods
-    indicator_data[indicator + '-2'] = indicator_data[indicator + '-2'].resample('W').last()
-    indicator_data[indicator + '-91'] = indicator_data[indicator + '-91'].resample('W').last()
+    indicator_data[indicator + '-2'] = indicator_data[indicator].shift(2).resample('W').last()
+    indicator_data[indicator + '-91'] = indicator_data[indicator].shift(91).resample('W').last()
 
 # Create a new DataFrame to hold the required features
 stock_data = []
 for key in data.keys():
     df = data[key]
     df['vwp'] = df['Adj Close'] * df['Volume']
-    df['p-1'] = df['Adj Close'].shift(1)  # Previous day's price
-    df = df[['Adj Close', 'vwp', 'p-1', 'Volume']]
-    df = df.resample('W').last()  # Resample to weekly data
+    df['p-1'] = df['Adj Close'].shift(1)
+    df = df[['Adj Close', 'vwp', 'p-1', 'Volume']].resample('W').last()
     df['date_feature'] = (df.index - df.index[0]).days
     df['ticker'] = key
     stock_data.append(df)
@@ -40,38 +35,35 @@ pivot_stock_df.columns = pd.MultiIndex.from_tuples([('stock', col[1], col[0]) fo
 # Create a DataFrame for the indicators with a multi-level column index
 pivot_indicator_df = pd.DataFrame(index=pivot_stock_df.index)
 for indicator in indicators:
-    pivot_indicator_df[('fred', indicator, 'value-2')] = indicator_data[indicator + '-2']  # Adjust column name to indicate the 2-day shift
-    pivot_indicator_df[('fred', indicator, 'value-91')] = indicator_data[indicator + '-91']  # Adjust column name to indicate the 91-day shift
+    pivot_indicator_df[('fred', indicator, 'value-2')] = indicator_data[indicator + '-2']
+    pivot_indicator_df[('fred', indicator, 'value-91')] = indicator_data[indicator + '-91']
 
 # Combine stock and indicator data
 combined_df = pd.concat([pivot_stock_df, pivot_indicator_df], axis=1)
 combined_df.dropna(inplace=True)
+# Create binary flags for Q1, Q2, Q3, and Q4 directly using index month
+combined_df[('date_', 'quarter', 'Q1')] = combined_df.index.to_series().apply(lambda x: 1 if x.month in [1, 2, 3] else 0)
+combined_df[('date_', 'quarter', 'Q2')] = combined_df.index.to_series().apply(lambda x: 1 if x.month in [4, 5, 6] else 0)
+combined_df[('date_', 'quarter', 'Q3')] = combined_df.index.to_series().apply(lambda x: 1 if x.month in [7, 8, 9] else 0)
+combined_df[('date_', 'quarter', 'Q4')] = combined_df.index.to_series().apply(lambda x: 1 if x.month in [10, 11, 12] else 0)
 
-# Rest of the code remains the same
-trial_results = []
 
 # Run the study
-
-# Create the study
 study = optuna.create_study(direction="minimize")
-
-# Optimize with the additional parameters
 study.optimize(functools.partial(objective, 
                                  combined_df=combined_df, 
                                  forecast_features=forecast_features,
                                  trial_results=trial_results,
                                  LOOK_BACK=LOOK_BACK,
                                  FORECAST_RANGE=FORECAST_RANGE,
-                                NUM_EPOCHS=NUM_EPOCHS), 
+                                 NUM_EPOCHS=NUM_EPOCHS), 
                n_trials=N_TRIALS)
 
 # Convert results to a DataFrame
-
 results_df = pd.DataFrame(trial_results)
 
 significant_features = []
-
-for feature in features:
+for feature in include_flags:
     mape_with_feature = results_df[results_df[feature] == True]['mape']
     mape_without_feature = results_df[results_df[feature] == False]['mape']
     
@@ -112,7 +104,7 @@ plt.savefig('trial_mape.png')
 print("\nBest trial:")
 print(f"  MAPE: {best_trial['mape']:.2f}")
 print("  Features:")
-for feature in features:
+for feature in include_flags:
     if best_trial[feature]:
         print(f"    - {feature}")
 
@@ -124,15 +116,4 @@ print("  Params: ")
 for key, value in best_trial.params.items():
     print(f"    {key}: {value}")
 
-features = [
-    ('stock', 'GOOGL', 'Adj Close'), 
-    ('stock', 'GOOGL', 'Volume'), 
-    ('stock', 'GOOGL', 'vwp'), 
-    ('stock', 'GOOGL', 'p-1'),
-    ('fred', 'T10Y3M', 'value-2'),
-    ('fred', 'T10Y3M', 'value-91'),
-    ('fred', 'EFFR', 'value-2'),
-    ('fred', 'EFFR', 'value-91')
-]
-forecast_features = [('stock', 'GOOGL', 'Adj Close')]
 backtest_and_evaluate(study, combined_df, MinMaxScaler(), features, forecast_features, NUM_EPOCHS=NUM_EPOCHS)

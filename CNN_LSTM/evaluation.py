@@ -50,33 +50,37 @@ def evaluate_forecast(y_test_inverse, yhat_inverse):
     return mae, mse, mape
 
 def objective(trial, combined_df, forecast_features, trial_results, LOOK_BACK, FORECAST_RANGE, NUM_EPOCHS):
-    # Select features to include
-    include_volume = trial.suggest_categorical("include_volume", [True, False])
-    include_vwp = trial.suggest_categorical("include_vwp", [True, False])
-    include_spy = trial.suggest_categorical("include_spy", [True, False])
-    include_T10Y3M = trial.suggest_categorical("include_T10Y3M", [True, False])
-    include_EFFR = trial.suggest_categorical("include_EFFR", [True, False])
-    include_p1 = trial.suggest_categorical("include_p1", [True, False])  # New line
+    # Select features to include using trial suggestions
+    selected_flags = [trial.suggest_categorical(flag, [True, False]) for flag in include_flags]
     
     # Construct the feature list based on the trial's suggestions
-    features = ['Adj Close']
-    if include_volume:
-        features.append('Volume')
-    if include_vwp:
-        features.append('vwp')
-    if include_spy:
-        features.append('SPY')
-    if include_T10Y3M:
-        features.append('T10Y3M')
-    if include_EFFR:
-        features.append('EFFR')
-    if include_p1:
-        features.append('p-1')  # New line
+    selected_features = [features[0]]  # Always include the main feature
+    for index, flag in enumerate(selected_flags, 1):
+        if flag:
+            selected_features.append(features[index])
     
-    # Normalize and prepare data
-    selected_columns = [col for col in combined_df.columns if any(feature in col for feature in features)]
-    data_subset = combined_df[selected_columns]
+    # Convert selected_features to tuples to match combined_df's multi-level column index
+    selected_features = [tuple(feature.split('.')) for feature in selected_features]
     
+    # Ensure that the selected features exist in the combined_df
+    valid_features = [feature for feature in selected_features if feature in combined_df.columns]
+    
+    # Debug print statement to verify selected and valid features
+    print(f"Selected features: {selected_features}")
+    print(f"Valid features: {valid_features}")
+    print(f"Combined_df columns: {combined_df.columns.tolist()}")
+
+    if not valid_features:
+        raise ValueError("No valid features selected for training.")
+    
+    # Extract and process the valid features
+    data_subset = combined_df[valid_features].dropna()
+    
+    # Handle the case where the data subset is empty after dropping NaNs
+    if data_subset.empty:
+        raise ValueError("No data available after dropping NaNs.")
+    
+    # Scaling the data
     scaler = MinMaxScaler()
     scaled_data = scaler.fit_transform(data_subset)
     scaled_data = pd.DataFrame(scaled_data, columns=data_subset.columns, index=data_subset.index)
@@ -92,7 +96,6 @@ def objective(trial, combined_df, forecast_features, trial_results, LOOK_BACK, F
     n_outputs = len(forecast_indices)
     
     mape_results = []
-    
     for _ in range(NUM_SIMULATIONS):
         # Prepare the data for LSTM
         X, y = split_sequence(scaled_data.values, LOOK_BACK, FORECAST_RANGE, forecast_indices)
@@ -137,28 +140,39 @@ def objective(trial, combined_df, forecast_features, trial_results, LOOK_BACK, F
     trial_results.append({
         'trial_number': trial.number,
         'mape': average_mape,
-        'include_volume': include_volume,
-        'include_vwp': include_vwp,
-        'include_spy': include_spy,
-        'include_T10Y3M': include_T10Y3M,
-        'include_EFFR': include_EFFR,
-        'include_p1': include_p1  # New line
+        **{include_flags[i-1]: selected_flags[i-1] for i in range(1, len(features))}
     })
     
     return average_mape
 
 def backtest_and_evaluate(study, combined_df, scaler, features, forecast_features, LOOK_BACK=156, FORECAST_RANGE=13, NUM_EPOCHS=20):
+    # Convert features and forecast_features to tuples to match combined_df's multi-level column index
+    features = [tuple(feature.split('.')) for feature in features]
+    forecast_features = [tuple(feature.split('.')) for feature in forecast_features]
+    
+    # Select valid features from combined_df
     selected_columns = [col for col in combined_df.columns if col in features]
-    data_subset = combined_df[selected_columns]
+    
+    # Debug print statements to check selected columns and data_subset
+    print(f"Features: {features}")
+    print(f"Selected columns: {selected_columns}")
+    
+    data_subset = combined_df[selected_columns].dropna()
+    
+    # Debug print statement to check data_subset
+    print(f"Data subset shape: {data_subset.shape}")
+    print(f"Data subset head:\n{data_subset.head()}")
+    
+    if data_subset.empty:
+        raise ValueError("No data available after dropping NaNs.")
     
     scaled_data = scaler.fit_transform(data_subset)
     scaled_data = pd.DataFrame(scaled_data, columns=data_subset.columns, index=data_subset.index)
     
-    # Convert multi-level column names to string
+    # The rest of your function remains unchanged
     scaled_data.columns = ['.'.join(col) if isinstance(col, tuple) else col for col in scaled_data.columns]
     feature_mapping = {col: idx for idx, col in enumerate(scaled_data.columns)}
     
-    # Convert forecast_features to string format if they're tuples
     forecast_features = ['.'.join(feature) if isinstance(feature, tuple) else feature for feature in forecast_features]
     forecast_indices = [feature_mapping[feature] for feature in forecast_features]
     
@@ -222,4 +236,5 @@ def backtest_and_evaluate(study, combined_df, scaler, features, forecast_feature
     date_range = pd.date_range(start=last_date, periods=FORECAST_RANGE, freq='W')
     
     plot_predictions_with_intervals(yhat_forecast_inverse_last, lower_bounds_residuals, upper_bounds_residuals, date_range, forecast_features)
+
 
