@@ -20,9 +20,9 @@ print(f"Using device: {device}")
 end_date = datetime.now()
 start_date = end_date - timedelta(days=365*5)  # 5 years of data
 
-NUM_SIMULATIONS = 3  # or any other number you prefer
-N_TRIALS = 5
-NUM_EPOCHS = 20
+NUM_SIMULATIONS = 10  # or any other number you prefer
+N_TRIALS = 20
+NUM_EPOCHS = 50
 LOOK_BACK = 156
 FORECAST_RANGE = 13
 
@@ -40,7 +40,11 @@ features = [
     'fred.T10Y3M.value-2',
     'fred.T10Y3M.value-91',
     'fred.EFFR.value-2',
-    'fred.EFFR.value-91'
+    'fred.EFFR.value-91',
+    'date.quarter.Q1',
+    'date.quarter.Q2',
+    'date.quarter.Q3',
+    'date.quarter.Q4'
 ]
 
 # Define indicators
@@ -121,20 +125,11 @@ for indicator in indicators:
 # Combine stock and indicator data
 combined_df = pd.concat([pivot_stock_df, pivot_indicator_df], axis=1)
 combined_df.dropna(inplace=True)
-
-# Extract the month from the index
-combined_df['Month'] = combined_df.index.month
-
-# Create binary flags for Q1, Q2, and Q3
-combined_df['Q1'] = combined_df['Month'].apply(lambda x: 1 if x in [1, 2, 3] else 0)
-combined_df['Q2'] = combined_df['Month'].apply(lambda x: 1 if x in [4, 5, 6] else 0)
-combined_df['Q3'] = combined_df['Month'].apply(lambda x: 1 if x in [7, 8, 9] else 0)
-
-# Drop the temporary 'Month' column
-combined_df.drop(columns=['Month'], inplace=True)
-
-# Now combined_df has the quarterly indicators as additional columns
-print(combined_df.head())
+# Create binary flags for Q1, Q2, Q3, and Q4 directly using index month
+combined_df[('date_', 'quarter', 'Q1')] = combined_df.index.to_series().apply(lambda x: 1 if x.month in [1, 2, 3] else 0)
+combined_df[('date_', 'quarter', 'Q2')] = combined_df.index.to_series().apply(lambda x: 1 if x.month in [4, 5, 6] else 0)
+combined_df[('date_', 'quarter', 'Q3')] = combined_df.index.to_series().apply(lambda x: 1 if x.month in [7, 8, 9] else 0)
+combined_df[('date_', 'quarter', 'Q4')] = combined_df.index.to_series().apply(lambda x: 1 if x.month in [10, 11, 12] else 0)
 
 # Run the study
 study = optuna.create_study(direction="minimize")

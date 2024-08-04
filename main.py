@@ -47,7 +47,6 @@ combined_df[('date_', 'quarter', 'Q2')] = combined_df.index.to_series().apply(la
 combined_df[('date_', 'quarter', 'Q3')] = combined_df.index.to_series().apply(lambda x: 1 if x.month in [7, 8, 9] else 0)
 combined_df[('date_', 'quarter', 'Q4')] = combined_df.index.to_series().apply(lambda x: 1 if x.month in [10, 11, 12] else 0)
 
-
 # Run the study
 study = optuna.create_study(direction="minimize")
 study.optimize(functools.partial(objective, 

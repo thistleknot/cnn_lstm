@@ -1,12 +1,5 @@
 from imports import *
 
-# constants.py
-NUM_SIMULATIONS = 3
-N_TRIALS = 5
-NUM_EPOCHS = 20
-LOOK_BACK = 156
-FORECAST_RANGE = 13
-
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
@@ -14,9 +7,9 @@ print(f"Using device: {device}")
 end_date = datetime.now()
 start_date = end_date - timedelta(days=365*5)  # 5 years of data
 
-NUM_SIMULATIONS = 3  # or any other number you prefer
-N_TRIALS = 5
-NUM_EPOCHS = 20
+NUM_SIMULATIONS = 10  # or any other number you prefer
+N_TRIALS = 20
+NUM_EPOCHS = 50
 LOOK_BACK = 156
 FORECAST_RANGE = 13
 
