@@ -50,9 +50,8 @@ pivot_stock_df.columns = pd.MultiIndex.from_tuples([('stock', col[1], col[0]) fo
 
 # Create a DataFrame for the indicators with a multi-level column index
 pivot_indicator_df = pd.DataFrame(index=pivot_stock_df.index)
-#for indicator in indicators:
-    #pivot_indicator_df[('fred', indicator, 'value-2')] = indicator_data[indicator + '-2']
-    #pivot_indicator_df[('fred', indicator, 'value-91')] = indicator_data[indicator + '-91']
+for indicator in indicators:
+    pivot_indicator_df[('fred', indicator, 'value')] = indicator_data[indicator]
 
 # Combine stock and indicator data
 combined_df = pd.concat([pivot_stock_df, pivot_indicator_df], axis=1)
@@ -75,7 +74,7 @@ for forecast_feature in forecast_features:
                 combined_df[(feature[0], feature[1], f'p-{lag}')] = combined_df[feature].shift(lag)
                 features.append(lagged_feature_name)
         elif feature[0] == 'fred':
-            optimal_lags = calculate_optimal_lags(combined_df[forecast_feature], combined_df[feature])
+            optimal_lags = calculate_optimal_lags(combined_df[translate_column_name(forecast_feature)], combined_df[translate_column_name(feature)])
             for lag in optimal_lags:
                 lagged_feature_name = f'{feature[0]}.{feature[1]}.value-{lag}'
                 combined_df[(feature[0], feature[1], f'value-{lag}')] = combined_df[feature].shift(lag)
