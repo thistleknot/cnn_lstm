@@ -9,9 +9,9 @@ start_date = end_date - timedelta(days=365*5)  # 5 years of data
 
 debug = False
 
-NUM_SIMULATIONS = 10  # or any other number you prefer
-N_TRIALS = 20
-NUM_EPOCHS = 50
+NUM_SIMULATIONS = 3  # or any other number you prefer
+N_TRIALS = 5
+NUM_EPOCHS = 20
 LOOK_BACK = 156
 FORECAST_RANGE = 13
 
@@ -25,11 +25,11 @@ features = [
     'stock.GOOGL.Adj Close', 
     'stock.GOOGL.Volume', 
     'stock.GOOGL.vwp', 
-    'stock.GOOGL.p-1',
-    'fred.T10Y3M.value-2',
-    'fred.T10Y3M.value-91',
-    'fred.EFFR.value-2',
-    'fred.EFFR.value-91',
+    #'stock.GOOGL.p-1',
+    #'fred.T10Y3M.value-2',
+    #'fred.T10Y3M.value-91',
+    #'fred.EFFR.value-2',
+    #'fred.EFFR.value-91',
     'date.quarter.Q1',
     'date.quarter.Q2',
     'date.quarter.Q3',
@@ -38,8 +38,5 @@ features = [
 
 # Define indicators
 indicators = ['T10Y3M', 'EFFR']
-
-# Generate include flags from the features list
-include_flags = [f'include.{feature}' for feature in features[1:]]  # Skip the first feature as it is always included
 
 trial_results = []
