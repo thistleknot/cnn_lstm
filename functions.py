@@ -60,4 +60,5 @@ def calculate_optimal_lags(forecast_feature, feature, window_size=91):
     # Extract the lags from the sorted significant correlations
     significant_lags = [lag for lag, _ in significant_correlations]
 
-    return significant_lags
+    #return highest
+    return [significant_lags[0]]
