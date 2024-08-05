@@ -46,7 +46,7 @@ def evaluate_forecast(y_test_inverse, yhat_inverse):
     mape = np.mean(np.abs((y_test_inverse - yhat_inverse) / y_test_inverse)) * 100
     return mae, mse, mape
 
-def objective(trial, combined_df, forecast_features, trial_results, LOOK_BACK, FORECAST_RANGE, NUM_EPOCHS):
+def objective(trial, combined_df, forecast_features, trial_results, include_flags, LOOK_BACK, FORECAST_RANGE, NUM_EPOCHS):
     # Select features to include using trial suggestions
     selected_flags = [trial.suggest_categorical(flag, [True, False]) for flag in include_flags]
     

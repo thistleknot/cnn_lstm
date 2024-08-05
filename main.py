@@ -19,18 +19,19 @@ for indicator in indicators:
     ind_data = pdr.get_data_fred(indicator, start=start_date, end=end_date)
     ind_data = ind_data.reindex(all_dates).interpolate().ffill()  # Interpolate missing data
     indicator_data[indicator] = ind_data
-    indicator_data[indicator + '-2'] = ind_data.shift(2).reindex(nyse_dates).resample('W').last()
-    indicator_data[indicator + '-91'] = ind_data.shift(91).reindex(nyse_dates).resample('W').last()
+    #indicator_data[indicator + '-2'] = ind_data.shift(2)#.reindex(nyse_dates).resample('W').last()
+    #indicator_data[indicator + '-91'] = ind_data.shift(91)#.reindex(nyse_dates).resample('W').last()
 
 # Create a new DataFrame to hold the required features
 stock_data = []
 for key in data.keys():
     df = data[key].reindex(all_dates).interpolate().ffill()
     df['vwp'] = df['Adj Close'] * df['Volume']
-    df['p-1'] = df['Adj Close'].shift(1)
-    df = df[['Adj Close', 'vwp', 'p-1', 'Volume']]
+    #df['p-1'] = df['Adj Close'].shift(1)
+    #df = df[['Adj Close', 'vwp', 'p-1', 'Volume']]
+    df = df[['Adj Close', 'vwp', 'Volume']]
     
-    df = df.reindex(nyse_dates).resample('W').last()
+    #df = df.reindex(nyse_dates).resample('W').last()
     df['Date'] = df.index  # Ensure Date is maintained
     df['date_feature'] = (df.index - df.index[0]).days
     df['ticker'] = key
@@ -43,14 +44,15 @@ combined_stock_data = pd.concat(stock_data)
 combined_stock_data.reset_index(drop=True, inplace=True)
 
 # Pivot the data to have a multi-level column index
-pivot_stock_df = combined_stock_data.pivot_table(index='Date', columns='ticker', values=['Adj Close', 'vwp', 'p-1', 'Volume', 'date_feature'])
+#pivot_stock_df = combined_stock_data.pivot_table(index='Date', columns='ticker', values=['Adj Close', 'vwp', 'p-1', 'Volume', 'date_feature'])
+pivot_stock_df = combined_stock_data.pivot_table(index='Date', columns='ticker', values=['Adj Close', 'vwp', 'Volume', 'date_feature'])
 pivot_stock_df.columns = pd.MultiIndex.from_tuples([('stock', col[1], col[0]) for col in pivot_stock_df.columns])
 
 # Create a DataFrame for the indicators with a multi-level column index
 pivot_indicator_df = pd.DataFrame(index=pivot_stock_df.index)
-for indicator in indicators:
-    pivot_indicator_df[('fred', indicator, 'value-2')] = indicator_data[indicator + '-2']
-    pivot_indicator_df[('fred', indicator, 'value-91')] = indicator_data[indicator + '-91']
+#for indicator in indicators:
+    #pivot_indicator_df[('fred', indicator, 'value-2')] = indicator_data[indicator + '-2']
+    #pivot_indicator_df[('fred', indicator, 'value-91')] = indicator_data[indicator + '-91']
 
 # Combine stock and indicator data
 combined_df = pd.concat([pivot_stock_df, pivot_indicator_df], axis=1)
@@ -62,12 +64,36 @@ combined_df[('date_', 'quarter', 'Q2')] = combined_df.index.to_series().apply(la
 combined_df[('date_', 'quarter', 'Q3')] = combined_df.index.to_series().apply(lambda x: 1 if x.month in [7, 8, 9] else 0)
 combined_df[('date_', 'quarter', 'Q4')] = combined_df.index.to_series().apply(lambda x: 1 if x.month in [10, 11, 12] else 0)
 
+# Find and create lagged features based on optimal lags
+for forecast_feature in forecast_features:
+    for feature in combined_df.columns:
+        # Only calculate lags for 'Adj Close' in stock data
+        if feature[0] == 'stock' and feature[2] == 'Adj Close' and feature != forecast_feature:
+            optimal_lags = calculate_optimal_lags(combined_df[translate_column_name(forecast_feature)], combined_df[translate_column_name(feature)])
+            for lag in optimal_lags:
+                lagged_feature_name = f'{feature[0]}.{feature[1]}.p-{lag}'
+                combined_df[(feature[0], feature[1], f'p-{lag}')] = combined_df[feature].shift(lag)
+                features.append(lagged_feature_name)
+        elif feature[0] == 'fred':
+            optimal_lags = calculate_optimal_lags(combined_df[forecast_feature], combined_df[feature])
+            for lag in optimal_lags:
+                lagged_feature_name = f'{feature[0]}.{feature[1]}.value-{lag}'
+                combined_df[(feature[0], feature[1], f'value-{lag}')] = combined_df[feature].shift(lag)
+                features.append(lagged_feature_name)
+
+
+# Generate include flags from the features list
+include_flags = [f'include.{feature}' for feature in features[1:]]  # Skip the first feature as it is always included
+
+combined_df = combined_df.reindex(nyse_dates).resample('W').last()
+
 # Run the study
 study = optuna.create_study(direction="minimize")
 study.optimize(functools.partial(objective, 
                                  combined_df=combined_df, 
                                  forecast_features=forecast_features,
                                  trial_results=trial_results,
+                                 include_flags=include_flags,  # Pass include_flags here
                                  LOOK_BACK=LOOK_BACK,
                                  FORECAST_RANGE=FORECAST_RANGE,
                                  NUM_EPOCHS=NUM_EPOCHS), 

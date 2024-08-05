@@ -1,5 +1,21 @@
 from imports import *
 
+
+def translate_column_name(column_name):
+    """
+    Translates a column name from string format to tuple format.
+    
+    Args:
+    column_name (str or tuple): Column name in string format, e.g., 'stock.GOOGL.Adj Close',
+                                or already in tuple format, e.g., ('stock', 'GOOGL', 'Adj Close').
+    
+    Returns:
+    tuple: Column name in tuple format, e.g., ('stock', 'GOOGL', 'Adj Close').
+    """
+    if isinstance(column_name, tuple):
+        return column_name
+    return tuple(column_name.split('.'))
+
 def calculate_threshold(df_length, confidence_level=0.95):
     # Degrees of freedom
     df = df_length - 2
@@ -30,7 +46,8 @@ def calculate_optimal_lags(forecast_feature, feature, window_size=91):
     for lag in range(1, window_size + 1):
         shifted_feature = feature.shift(lag)
         rolling_corr = forecast_feature.rolling(window=window_size).corr(shifted_feature)
-        threshold = calculate_threshold(len(rolling_corr).dropna())
+        rolling_corr = rolling_corr.dropna()
+        threshold = calculate_threshold(len(rolling_corr))
         median_corr = rolling_corr.median()
         correlations[lag] = median_corr
 
