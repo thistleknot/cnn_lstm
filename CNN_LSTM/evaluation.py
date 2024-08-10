@@ -17,10 +17,15 @@ def split_sequence(sequence, look_back, forecast_range, forecast_indices):
         y.append(seq_y)
     return np.array(X), np.array(y)
 
-def calculate_prediction_intervals_based_on_residuals(predictions, std_devs):
-    lower_bounds = predictions - std_devs
-    upper_bounds = predictions + std_devs
-    return lower_bounds, upper_bounds
+def calculate_prediction_intervals_based_on_residuals(yhat_forecast_inverse, std_devs_time_step, confidence_level=0.95):
+    # Determine the z-score for the specified confidence level (95%)
+    z_score = stats.norm.ppf(1 - (1 - confidence_level) / 2)
+    
+    # Calculate the prediction intervals
+    lower_bounds_residuals = yhat_forecast_inverse - z_score * std_devs_time_step
+    upper_bounds_residuals = yhat_forecast_inverse + z_score * std_devs_time_step
+    
+    return lower_bounds_residuals, upper_bounds_residuals
 
 def inverse_transform(scaler, y_test, yhat, forecast_indices):
     y_test_reshaped = y_test.reshape(-1, y_test.shape[-1])
@@ -45,6 +50,27 @@ def evaluate_forecast(y_test_inverse, yhat_inverse):
     mae = np.mean(np.abs(y_test_inverse - yhat_inverse))
     mape = np.mean(np.abs((y_test_inverse - yhat_inverse) / y_test_inverse)) * 100
     return mae, mse, mape
+
+def calculate_per_residual_intervals(residuals_per_simulation, std_dev_constant=1):
+    """
+    Calculate per-residual confidence intervals based on the standard deviation
+    of residuals at each forecast point across all simulations.
+
+    Parameters:
+    - residuals_per_simulation (np.ndarray): Residuals for each forecast point 
+      across all simulations, with shape (num_simulations, forecast_range, num_features).
+    - std_dev_constant (float): The number of standard deviations for the interval.
+
+    Returns:
+    - lower_bounds (np.ndarray): Lower bounds of the prediction intervals.
+    - upper_bounds (np.ndarray): Upper bounds of the prediction intervals.
+    """
+    std_devs_per_point = np.std(residuals_per_simulation, axis=0)
+    mean_forecast = np.mean(residuals_per_simulation, axis=0)  # Calculate mean forecast
+    lower_bounds = mean_forecast - std_dev_constant * std_devs_per_point
+    upper_bounds = mean_forecast + std_dev_constant * std_devs_per_point
+
+    return lower_bounds, upper_bounds
 
 def objective(trial, combined_df, forecast_features, trial_results, include_flags, LOOK_BACK, FORECAST_RANGE, NUM_EPOCHS):
     # Select features to include using trial suggestions
@@ -210,8 +236,9 @@ def backtest_and_evaluate(study, combined_df, scaler, features, forecast_feature
     y_train_inverse_time_step = y_train_inverse.reshape(-1, FORECAST_RANGE, y_train_inverse.shape[-1])
     yhat_inverse_time_step = yhat_inverse.reshape(-1, FORECAST_RANGE, yhat_inverse.shape[-1])
     
+    # Compute residuals and standard deviations across both time steps and features
     residuals_time_step = y_train_inverse_time_step - yhat_inverse_time_step
-    std_devs_time_step = np.std(residuals_time_step, axis=0).squeeze()
+    std_devs_time_step = np.std(residuals_time_step, axis=0)  # Shape: (FORECAST_RANGE, n_features)
     
     last_values = scaled_data.values[-LOOK_BACK:]
     X_last = np.expand_dims(last_values, axis=0)
@@ -223,18 +250,24 @@ def backtest_and_evaluate(study, combined_df, scaler, features, forecast_feature
     
     yhat_forecast = yhat_forecast.reshape(-1, len(forecast_indices))
     yhat_forecast_inverse, _ = inverse_transform(scaler, np.zeros_like(yhat_forecast), yhat_forecast, forecast_indices)
-    
-    yhat_forecast_inverse_last = yhat_forecast_inverse
-    
-    std_dev_constant = 1
-    lower_bounds_original = yhat_forecast_inverse_last - std_dev_constant * yhat_forecast_inverse_last
-    upper_bounds_original = yhat_forecast_inverse_last + std_dev_constant * yhat_forecast_inverse_last
-    
-    lower_bounds_residuals, upper_bounds_residuals = calculate_prediction_intervals_based_on_residuals(yhat_forecast_inverse_last, std_devs_time_step)
-    
+
+    #TODO: should I move this logic into the plot function?
+    lower_bounds_residuals, upper_bounds_residuals = calculate_prediction_intervals_based_on_residuals(
+    yhat_forecast_inverse, 
+    std_devs_time_step, 
+    confidence_level=0.95  # Ensure it's 95% confidence interval
+    )
     last_date = combined_df.index[-1]
     date_range = pd.date_range(start=last_date, periods=FORECAST_RANGE, freq='W')
+
+    plot_predictions_with_intervals(
+        yhat_forecast_inverse, 
+        lower_bounds_residuals, 
+        upper_bounds_residuals, 
+        date_range, 
+        forecast_features
+    )
     
-    plot_predictions_with_intervals(yhat_forecast_inverse_last, lower_bounds_residuals, upper_bounds_residuals, date_range, forecast_features)
+    #plot_predictions_with_intervals(yhat_forecast_inverse, lower_bounds_residuals, upper_bounds_residuals, date_range, forecast_features, std_devs_time_step)
 
 

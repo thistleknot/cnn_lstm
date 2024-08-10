@@ -20,9 +20,8 @@ from constants import *
 
 import matplotlib.dates as mdates
 
-def plot_predictions_with_intervals(y_pred, lower_bound_res, upper_bound_res, dates, feature_names, std_dev=1):
-    # Ensure we're only using the last 13 points for the forecast horizon
-    forecast_length = FORECAST_RANGE
+def plot_predictions_with_intervals(y_pred, lower_bound_res, upper_bound_res, dates, feature_names):
+    forecast_length = len(dates)
     y_pred = y_pred[-forecast_length:]
     lower_bound_res = lower_bound_res[-forecast_length:]
     upper_bound_res = upper_bound_res[-forecast_length:]
@@ -36,25 +35,25 @@ def plot_predictions_with_intervals(y_pred, lower_bound_res, upper_bound_res, da
     if n_features == 1:
         axes = [axes]
     
-    z_score_percent = (stats.norm.cdf(std_dev) - stats.norm.cdf(-std_dev)) * 100
-    
     for i, (ax, feature) in enumerate(zip(axes, feature_names)):
         y_pred_trimmed = y_pred[:, i]
         
+        # Plot the forecast line
         ax.plot(dates, y_pred_trimmed, label='Forecast', color='blue')
-        ax.fill_between(dates, lower_bound_res[:, i], upper_bound_res[:, i], color='lightblue', alpha=0.4, label='Prediction Interval')
         
-        ax.set_title(f'{feature} Forecast with Intervals\n(Based on residuals, ±{std_dev:.2f} std dev ≈ {z_score_percent:.2f}%)')
+        # Plot 95% prediction intervals
+        ax.fill_between(dates, lower_bound_res[:, i], upper_bound_res[:, i], color='lightblue', alpha=0.4, label='95% Prediction Interval')
         
+        ax.set_title(f'{feature} Close Forecast with 95% Prediction Interval')
         ax.set_xlabel('Date')
         ax.set_ylabel('Value')
-        
         ax.legend(loc='upper left')
         
-        # Ensure x-axis shows exactly 13 dates
+        # Set x-axis ticks and format
         ax.set_xticks(dates)
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
 
     plt.gcf().autofmt_xdate()  # Rotate date labels
     plt.tight_layout()
     plt.savefig('forecast_intervals.png')
+    plt.close(fig)  # Close the figure to free up memory
