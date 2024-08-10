@@ -5,3 +5,7 @@ Tree-structured Parzen Estimator
 
 optimal lags identified via max absolute significant Median Correlation over moving windows
 
+
+Features
+* Significant Median correlations over moving windows used to identify lags to test for
+* t-tests used to determine whether or not mape reduced significantly enough to include a feature.

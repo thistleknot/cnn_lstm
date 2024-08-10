@@ -1,6 +1,7 @@
 from imports import *
 
 
+
 def translate_column_name(column_name):
     """
     Translates a column name from string format to tuple format.
