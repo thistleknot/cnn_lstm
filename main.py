@@ -6,7 +6,7 @@ from functions import *
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
-data = {ticker: yf.download(ticker, start=start_date, end=end_date) for ticker in tickers}
+data = {ticker: yf.download(ticker, start=start_date, end=end_date) for ticker in tickers_combined}
 
 # Create a date range from start_date to end_date
 all_dates = pd.date_range(start=start_date, end=end_date, freq='D').normalize()
