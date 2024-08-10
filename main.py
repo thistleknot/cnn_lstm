@@ -15,12 +15,22 @@ nyse_dates = nyse.schedule(start_date=start_date, end_date=end_date)['market_clo
 
 # Fetch data for each indicator
 indicator_data = {}
+indicators_to_remove = []  # List to store indicators that fail
+
 for indicator in indicators:
-    ind_data = pdr.get_data_fred(indicator, start=start_date, end=end_date)
-    ind_data = ind_data.reindex(all_dates).interpolate().ffill()  # Interpolate missing data
-    indicator_data[indicator] = ind_data
-    #indicator_data[indicator + '-2'] = ind_data.shift(2)#.reindex(nyse_dates).resample('W').last()
-    #indicator_data[indicator + '-91'] = ind_data.shift(91)#.reindex(nyse_dates).resample('W').last()
+    try:
+        ind_data = pdr.get_data_fred(indicator, start=start_date, end=end_date)
+        ind_data = ind_data.reindex(all_dates).interpolate().ffill()  # Interpolate missing data
+        indicator_data[indicator] = ind_data
+    except:
+        indicators_to_remove.append(indicator)
+        columns_to_remove = [col for col in features.columns if col[0] == 'fred' and col[1] == indicator]
+        features = features.drop(columns=columns_to_remove)
+        print(f"Removed {len(columns_to_remove)} columns related to {indicator} from features DataFrame")
+
+# Remove failed indicators from the indicators list
+for indicator in indicators_to_remove:
+    indicators.remove(indicator)
 
 # Create a new DataFrame to hold the required features
 stock_data = []

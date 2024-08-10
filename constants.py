@@ -32,7 +32,12 @@ sector_etfs = [
 ]
 
 other_etfs = [
-    'VIX'
+    'QQQ', 'IWM', 'GLD', 'TLT', 'UUP', 'OIL', 'SOCL', 'CIBR', 'CLOU'
+]
+
+indicators = [
+    'T10Y3M', 'EFFR', 'GDP', 'CPIAUCSL', 'UNRATE', 'UMCSENT', 'NAPM', 'HOUST', 'RSAFS',
+    'VIXCLS', 'TOTALSA', 'DGS10', 'DGS2', 'PCRATM'
 ]
 
 # Download data for tickers
