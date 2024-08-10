@@ -10,9 +10,10 @@ start_date = end_date - timedelta(days=365*5)  # 5 years of data
 
 debug = False
 
-NUM_SIMULATIONS = 3  # or any other number you prefer
-N_TRIALS = 10
-NUM_EPOCHS = 20
+NUM_SIMULATIONS = 10  # or any other number you prefer
+#should be beased on len features
+N_TRIALS = 40
+NUM_EPOCHS = 50
 LOOK_BACK = 156
 FORECAST_RANGE = 13
 
@@ -44,44 +45,22 @@ tickers_combined = [*tickers_all,*tickers_price]
 # Define your parameters
 forecast_features = ['stock.GOOGL.Adj Close']
 
-sector_etf_features = [
-    "stock.XLK.AdjClose",
-    "stock.XLV.AdjClose",
-    "stock.XLF.AdjClose",
-    "stock.XLY.AdjClose",
-    "stock.XLP.AdjClose",
-    "stock.XLE.AdjClose",
-    "stock.XLI.AdjClose",
-    "stock.XLB.AdjClose",
-    "stock.XLU.AdjClose",
-    "stock.XLRE.AdjClose",
-    "stock.XLC.AdjClose"
-]
-
-other_features = [
-    "stock.VIX.AdjClose"
-]
-
-
-
 # Define indicators
 indicators = ['T10Y3M', 'EFFR']
 
 # Base features to always include
 base_features = [
+    *forecast_features,
     'date.quarter.Q1',
     'date.quarter.Q2',
     'date.quarter.Q3',
-    'date.quarter.Q4',
-    *sector_etf_features,
-    *other_features
+    'date.quarter.Q4'
 ]
 
 # Generate the final features list
 features = create_feature_list(tickers_all, tickers_price, indicators, base_features)
 
 # Output the final features list for inspection
-print(features)
 print(features)
 #ffill, balance sheet info, fundamentals
 #inflation, gdp, unrate, confidence

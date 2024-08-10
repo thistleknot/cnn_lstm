@@ -2,7 +2,13 @@ from .training import train_model
 from .CNN_TS import LSTMEncoderDecoderAttention
 from imports import *
 from constants import *
-from .visualization import plot_predictions_with_intervals, plot_predictions_with_intervals_and_returns
+from .visualization import plot_predictions_with_intervals_and_returns
+
+def translate_column_name(column_name):
+    # Split the string into its components
+    components = column_name.split('.')
+    # Return as a tuple matching the DataFrame's multi-level index structure
+    return tuple(components)
 
 # Function to split sequence for LSTM
 def split_sequence(sequence, look_back, forecast_range, forecast_indices):
@@ -260,14 +266,22 @@ def backtest_and_evaluate(study, combined_df, scaler, features, forecast_feature
     last_date = combined_df.index[-1]
     date_range = pd.date_range(start=last_date, periods=FORECAST_RANGE, freq='W')
 
-    plot_predictions_with_intervals(
-        yhat_forecast_inverse, 
-        lower_bounds_residuals, 
-        upper_bounds_residuals, 
-        date_range, 
-        forecast_features
+    # Use this to get the last actual price
+    # Translate it
+    # Translate the forecast feature name
+    forecast_feature_tuple = translate_column_name(forecast_features[0])
+
+    # Get the last actual price
+    last_actual_price = combined_df[forecast_feature_tuple].iloc[-FORECAST_RANGE-1]
+
+    # Call the plotting function
+    plot_predictions_with_intervals_and_returns(
+        yhat_forecast_inverse,  # This is y_pred in the function signature
+        lower_bounds_residuals,  # This is lower_bound_res
+        upper_bounds_residuals,  # This is upper_bound_res
+        date_range,  # This is dates
+        [forecast_feature_tuple[2]],  # This is feature_names, which should be ['Adj Close']
+        last_actual_price
     )
-    plot_predictions_with_intervals_and_returns(yhat_forecast_inverse, lower_bounds_residuals, upper_bounds_residuals, date_range, forecast_features)
-    #plot_predictions_with_intervals(yhat_forecast_inverse, lower_bounds_residuals, upper_bounds_residuals, date_range, forecast_features, std_devs_time_step)
 
 
