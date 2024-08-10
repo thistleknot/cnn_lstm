@@ -2,7 +2,7 @@ from .training import train_model
 from .CNN_TS import LSTMEncoderDecoderAttention
 from imports import *
 from constants import *
-from .visualization import plot_predictions_with_intervals
+from .visualization import plot_predictions_with_intervals, plot_predictions_with_intervals_and_returns
 
 # Function to split sequence for LSTM
 def split_sequence(sequence, look_back, forecast_range, forecast_indices):
@@ -267,7 +267,7 @@ def backtest_and_evaluate(study, combined_df, scaler, features, forecast_feature
         date_range, 
         forecast_features
     )
-    
+    plot_predictions_with_intervals_and_returns(yhat_forecast_inverse, lower_bounds_residuals, upper_bounds_residuals, date_range, forecast_features)
     #plot_predictions_with_intervals(yhat_forecast_inverse, lower_bounds_residuals, upper_bounds_residuals, date_range, forecast_features, std_devs_time_step)
 
 

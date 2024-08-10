@@ -1,4 +1,5 @@
 from imports import *
+from functions import create_feature_list
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
@@ -32,8 +33,6 @@ sector_etfs = [
 other_etfs = [
     'VIX'
 ]
-
-
 
 # Download data for tickers
 #vwp, volume, adj_close
@@ -77,34 +76,6 @@ base_features = [
     *sector_etf_features,
     *other_features
 ]
-def generate_features_for_tickers(tickers):
-    """Generate stock-related features based on provided tickers."""
-    features = []
-    for ticker in tickers:
-        features.append(f'stock.{ticker}.Adj Close')
-        features.append(f'stock.{ticker}.Volume')
-        features.append(f'stock.{ticker}.vwp')
-    return features
-
-def expand_indicators(indicators):
-    """Expand indicators into their .value representation."""
-    return [f'fred.{indicator}.value' for indicator in indicators]
-
-def create_feature_list(tickers_all, tickers_price, indicators, base_features):
-    """Create a list of all features including ticker-related, indicators, and base features."""
-    # Generate ticker-specific features for tickers_all
-    ticker_features = generate_features_for_tickers(tickers_all)
-    
-    # Generate ticker-specific features for tickets_price (sector ETFs and other ETFs)
-    price_features = generate_features_for_tickers(tickers_price)
-    
-    # Expand indicators
-    expanded_indicators = expand_indicators(indicators)
-    
-    # Combine all features
-    features = ticker_features + price_features + expanded_indicators + base_features
-    
-    return features
 
 # Generate the final features list
 features = create_feature_list(tickers_all, tickers_price, indicators, base_features)
